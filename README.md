@@ -160,8 +160,16 @@ finger on the reader". Touch the sensor and you are logged in. Unlike the
 lock screen, the login screen has no separate fingerprint path that runs in
 the background.
 
-If your disk or KWallet is unlocked by the login password, a fingerprint
-login cannot do that for you and will ask for it later.
+**Side effect: keyring and wallet stay locked.** The login keyring and
+KWallet are encrypted with your login password. Log in by finger and nobody
+has typed it, so you get "The login keyring did not get unlocked when you
+logged into your computer" and a KWallet prompt, and anything that keeps
+credentials there (git over HTTPS, the GitHub CLI, browsers, Wi-Fi passwords)
+asks for them. A fingerprint cannot decrypt what a password encrypted.
+
+The practical habit: type the password at the login screen after a boot, and
+use the finger for the lock screen and `sudo`, where the keyring is already
+open.
 
 ### KDE Plasma lock screen
 
