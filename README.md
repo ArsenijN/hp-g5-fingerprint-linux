@@ -188,7 +188,15 @@ sudo scripts/kde-lockscreen-pam.sh
 ```
 
 This writes `/etc/pam.d/kde`, a copy of the distribution's lock-screen
-password config without the fingerprint step. `sudo` and the login screen are
+password config without the fingerprint step.
+
+The same script fixes a second lock-screen problem: **the finger is ignored
+on the lock screen after you logged in by finger at boot.** The lock screen's
+fingerprint login runs the KWallet module after the match. With no password
+typed since boot, that module looks for one where nobody can supply it, and
+the unlock never completes (`pam_kwallet5: Couldn't get password (it is
+empty)` in the journal, right after a successful match). The script writes
+`/etc/pam.d/kde-fingerprint` without the KWallet step. `sudo` and the login screen are
 not affected. Undo with `sudo scripts/kde-lockscreen-pam.sh --remove`. Run it
 again if you later change PAM settings with `pam-auth-update`.
 

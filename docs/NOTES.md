@@ -127,6 +127,14 @@ in the driver log:
   runs both at once. With `pam_fprintd` also in `common-auth`, the driver log
   shows interleaved verifications, one of them ending in `Fingerprint
   verification cancelled`.
+- **Lock screen dead after a fingerprint login at boot.** Same driver result
+  both times (`matched enrolled template`), different outcome one line later
+  in `kde-fingerprint`: `pam_kwallet5: we were already executed` when the
+  session was started with the password (unlocks), `pam_kwallet5: Couldn't
+  get password (it is empty)` when it was started by finger (no unlock, the
+  screen keeps asking for the password). The script now also writes
+  `/etc/pam.d/kde-fingerprint` without `pam_kwallet5`; result not confirmed
+  yet.
 - **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
   works again once the ten-second timeout hands over to the password prompt.
 
