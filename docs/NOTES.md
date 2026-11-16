@@ -111,9 +111,13 @@ Both are worth reporting on the upstream pull request.
   on `0xd51` / `0x969` chips and logs the reason of each rejected capture.
   The trade-off: a genuinely bad touch no longer produces a "try again" hint
   either. Upstream already limited the hint to one per attempt, and that one
-  was always used up by an empty capture, so nothing useful is lost. Once the
-  logged reasons show which code means "empty", the hint can be brought back
-  for the others.
+  was always used up by an empty capture, so nothing useful is lost.
+  Confirmed on the test machine: one prompt line, and a wrong finger still
+  gets `Failed to match fingerprint`. Every rejected capture logged so far
+  (8 of 8) carried the same reason, `Failed: 0007`, which therefore looks
+  like the "nothing on the sensor" status. No other reason has been seen yet,
+  so there is nothing to bring the hint back for.
+- **Touch pressure.** A light touch is enough; pressing hard is not needed.
 - **Plasma lock screen.** `kscreenlocker` ships `/usr/lib/pam.d/kde` (includes
   `common-auth`) and `/usr/lib/pam.d/kde-fingerprint` (`pam_fprintd` only) and
   runs both at once. With `pam_fprintd` also in `common-auth`, the driver log
