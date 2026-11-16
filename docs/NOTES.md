@@ -78,7 +78,7 @@ INFO:root:Fingerprint device registered with open-fprintd
 | KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
 | Suspend / resume (sleep) | Works |
 | Hibernation | Intermittent: failed on the first try (reader dead until the driver was restarted), worked on the second. `patches/0004` restarts the driver when it fails; that path has not fired yet |
-| Reboot, login screen (Plasma Login Manager) | Works: driver registered 12 s after boot; login by finger after submitting an empty password |
+| Reboot, login screen (Plasma Login Manager) | Works: driver registered 12 s after boot; login by finger after submitting an empty password; the login keyring and KWallet then each ask for the password once |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
 ## Two problems found on Ubuntu 24.04
@@ -133,8 +133,8 @@ in the driver log:
   session was started with the password (unlocks), `pam_kwallet5: Couldn't
   get password (it is empty)` when it was started by finger (no unlock, the
   screen keeps asking for the password). The script now also writes
-  `/etc/pam.d/kde-fingerprint` without `pam_kwallet5`. Confirmed: in the same
-  finger-started session the lock screen then unlocked by finger.
+  `/etc/pam.d/kde-fingerprint` without `pam_kwallet5`. Confirmed twice: in the
+  same finger-started session, and again after a reboot with a finger login.
 - **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
   works again once the ten-second timeout hands over to the password prompt.
 
