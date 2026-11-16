@@ -129,6 +129,25 @@ in the driver log:
 - **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
   works again once the ten-second timeout hands over to the password prompt.
 
+## Known issue: the chip reset itself once
+
+Seen once in about ten cancelled verifications. A verification was cancelled
+by the client (most likely `sudo`'s ten-second fingerprint timeout) in the
+short window where the chip had finished a capture and was still matching it.
+The driver's cleanup command (`62`) was written, the chip never answered, and
+the kernel logged `USB disconnect` followed 0.25 s later by the same device
+enumerating again. The driver exited on the USB error, udev started it again,
+and it was registered and matching within half a second. Enrolled fingers
+were not affected.
+
+Other cancellations, during the wait for a finger, did not do this. It looks
+like a race between cancel and match in the chip's firmware; the cause is not
+confirmed.
+
+Objects that are not a finger but give the sensor a usable image are logged
+as `Valid fingerprint capture matched no template`. "Valid" there means the
+chip produced an image, nothing more.
+
 ## Why build from a pinned commit
 
 - The PPA with prebuilt packages for this sensor
