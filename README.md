@@ -223,6 +223,15 @@ sudo rm -f /run/python-validity/backoff
 sudo systemctl start python3-validity
 ```
 
+**`Start request repeated too quickly` / `start-limit-hit`.** That is
+systemd's limiter, not the driver's; it trips when the service is stopped and
+started several times within seconds, for example during a reinstall.
+
+```
+sudo systemctl reset-failed python3-validity
+sudo systemctl start python3-validity
+```
+
 **The build fails in `setup.py`.** Another Python is ahead of the system one
 in your `PATH` (Homebrew, pyenv, conda). `install.sh` already forces the
 system `PATH`; if you build by hand, do the same.

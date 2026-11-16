@@ -115,6 +115,9 @@ sudo systemctl stop python3-validity.service 2>/dev/null || true
 # starts too, so a crash loop never recovers by itself. Start from zero.
 sudo rm -f /run/python-validity/backoff
 sudo systemctl restart open-fprintd.service
+# A reinstall stops and starts the unit several times within seconds, which
+# trips systemd's own start limit ("Start request repeated too quickly").
+sudo systemctl reset-failed python3-validity.service 2>/dev/null || true
 sudo systemctl start python3-validity.service
 
 echo "Waiting for the sensor to initialise and calibrate..."
