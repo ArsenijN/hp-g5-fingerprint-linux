@@ -74,7 +74,8 @@ INFO:root:Fingerprint device registered with open-fprintd
 | `fprintd-enroll` (right index finger) | Completed after 8 accepted touches |
 | `fprintd-verify` with the enrolled finger | `verify-match` |
 | `fprintd-verify` with a different finger | Not tested yet |
-| PAM (`sudo`, login), KDE lock screen | Not tested yet |
+| `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
+| Login screen, KDE lock screen | Not tested yet |
 | Suspend / resume | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 

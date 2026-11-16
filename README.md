@@ -119,6 +119,19 @@ After that `sudo`, the login screen and polkit prompts accept a finger. With
 the default settings you get one try and ten seconds before the password
 prompt appears.
 
+```
+$ sudo -k; sudo true
+Place your finger on the fingerprint reader
+Place your finger on the reader again
+```
+
+The second line usually appears before you have touched anything. That is
+normal: while waiting, the chip takes a capture every couple of seconds, an
+empty one is reported as "retry", and the driver forwards the first such
+report. Nothing is accepted until a capture really matches; the log
+(`journalctl -u python3-validity`) shows `retry-scan` lines followed by
+`Fingerprint verification matched enrolled template`.
+
 KDE Plasma's lock screen has its own fingerprint support and picks the
 enrolled finger up without extra configuration; press Enter with an empty
 password field on older versions if it does not start scanning by itself.
