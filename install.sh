@@ -98,7 +98,11 @@ sudo systemctl stop python3-validity.service 2>/dev/null || true
 # already ships in fprintd-clients.
 # During this step the package may download HP's driver bundle once to cache
 # the sensor firmware under /var/lib/python-validity/firmware.
-sudo apt-get install -y --no-install-recommends --allow-downgrades "$DEB"
+# --reinstall: a rebuild has the same version number as an earlier one, and
+# apt would otherwise keep the old files.
+sudo apt-get install -y --no-install-recommends --allow-downgrades --reinstall "$DEB"
+grep -q signal_add_full /usr/lib/python-validity/dbus-service \
+    || fail "The installed driver does not contain the local patches."
 
 say "Starting services (sudo)"
 sudo systemctl daemon-reload
