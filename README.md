@@ -254,9 +254,15 @@ sudo systemctl start python3-validity
 in your `PATH` (Homebrew, pyenv, conda). `install.sh` already forces the
 system `PATH`; if you build by hand, do the same.
 
-**Sensor stops responding after suspend.** `sudo systemctl restart
-python3-validity`. The package also keeps USB autosuspend off for the sensor
-for this reason.
+**Sensor stops responding after suspend or hibernation.** `sudo systemctl
+restart python3-validity` brings it back. Sleep (suspend to RAM) works as is.
+Hibernation powers the chip off, and the unpatched driver then fails to
+re-initialise it and stays running without a working session, so the reader
+is dead while the service still looks `active`.
+[patches/0004](patches/0004-dbus-service-restart-on-failed-resume.patch)
+makes the driver log the reason and exit in that case, and systemd starts it
+again a couple of seconds later. Expect the reader to need a few seconds
+after waking from hibernation; use the password if you are faster.
 
 **Do not run the generic factory reset** (`factory-reset.py` from older
 python-validity guides) on this chip. It was written for ThinkPad sensors.

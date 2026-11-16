@@ -77,7 +77,8 @@ INFO:root:Fingerprint device registered with open-fprintd
 | `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
 | KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
 | Suspend / resume (sleep) | Works |
-| Login screen after boot, hibernation | Not tested yet |
+| Hibernation | Reader dead after waking until the driver is restarted; `patches/0004` automates the restart, not confirmed yet |
+| Login screen after boot | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
 ## Two problems found on Ubuntu 24.04
@@ -128,6 +129,21 @@ in the driver log:
   verification cancelled`.
 - **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
   works again once the ten-second timeout hands over to the password prompt.
+
+## Hibernation
+
+Sleep (S3) is fine: the chip keeps power and the driver's `Resume` handler
+re-initialises it. After hibernation the handler's `init.open_common()` got
+as far as `Flash has 5 partitions.`, failed, was tried once more, failed the
+same way, and the exception went back to open-fprintd without being logged.
+The service stayed `active` with no TLS session, so every later verification
+did nothing. The kernel shows a USB reset of the same device number on
+wake-up, not a new enumeration, so udev does not restart the service either.
+
+Why re-initialisation fails over the old USB handle is not known yet; the
+first hibernation with `patches/0004` applied will put the exception in the
+log. A cold start of the driver works every time, which is what the patch
+falls back to.
 
 ## Known issue: the chip reset itself once
 

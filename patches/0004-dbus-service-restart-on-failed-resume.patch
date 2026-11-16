@@ -1,0 +1,26 @@
+diff --git a/dbus_service/dbus-service b/dbus_service/dbus-service
+index 33997e0..ffc4904 100755
+--- a/dbus_service/dbus-service
++++ b/dbus_service/dbus-service
+@@ -99,8 +99,19 @@ class Device(dbus.service.Object):
+         tls.reset()
+         try:
+             init.open_common()
+-        except:
+-            init.open_common()
++        except Exception:
++            # After hibernation the chip has been powered off, and
++            # re-initialising it over the old USB handle fails (seen on
++            # 138a:00ab; a second attempt fails the same way). The process
++            # would otherwise stay alive with a dead session and every later
++            # verification would silently do nothing. A cold start is the
++            # path that is known to work, so record why and let systemd
++            # start us again (Restart=on-failure). os._exit skips the atexit
++            # reboot command, which cannot be sent without a session anyway.
++            logging.exception('Sensor re-initialisation after resume failed; '
++                              'exiting so that systemd restarts the driver')
++            logging.shutdown()
++            os._exit(1)
+ 
+     @dbus.service.method(dbus_interface=INTERFACE_NAME, in_signature="s", out_signature="as")
+     def ListEnrolledFingers(self, user):
