@@ -78,7 +78,7 @@ INFO:root:Fingerprint device registered with open-fprintd
 | KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
 | Suspend / resume (sleep) | Works |
 | Hibernation | Intermittent: failed on the first try (reader dead until the driver was restarted), worked on the second. `patches/0004` restarts the driver when it fails; that path has not fired yet |
-| Login screen after boot | Not tested yet |
+| Reboot, login screen (Plasma Login Manager) | Works: driver registered 12 s after boot; login by finger after submitting an empty password |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
 ## Two problems found on Ubuntu 24.04

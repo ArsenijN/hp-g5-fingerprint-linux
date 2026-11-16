@@ -151,6 +151,18 @@ While `sudo` waits for a finger it does not react to Ctrl+C. That is how
 `pam_fprintd` behaves; after its ten-second timeout the password prompt
 appears and Ctrl+C works again.
 
+### Login screen after boot
+
+The login screen (Plasma Login Manager or SDDM) does not listen for a finger
+by itself. It only starts authenticating when you submit the form: leave the
+password empty, press Enter or the arrow button, and it then says "place your
+finger on the reader". Touch the sensor and you are logged in. Unlike the
+lock screen, the login screen has no separate fingerprint path that runs in
+the background.
+
+If your disk or KWallet is unlocked by the login password, a fingerprint
+login cannot do that for you and will ask for it later.
+
 ### KDE Plasma lock screen
 
 Plasma 6 has its own fingerprint path for the lock screen and needs one extra
