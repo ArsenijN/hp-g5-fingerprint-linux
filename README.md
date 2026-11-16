@@ -129,9 +129,27 @@ a second line, "Place your finger on the reader again", shows up a moment
 later although nothing was touched. While waiting, this chip completes an
 empty capture every couple of seconds and the driver reported the first one
 as a retry. It was only ever cosmetic: nothing is accepted until a capture
-really matches. The patch keeps that hint off the prompt and writes the
-chip's reason to the log instead (`journalctl -u python3-validity`, lines
-starting with `Capture rejected:`).
+really matches. The patch ignores those empty captures, so the "again" hint
+is left for a touch the chip could not read (fingertip only, too brief).
+
+To see what the chip makes of each touch, watch the log while testing:
+
+```
+journalctl -fu python3-validity -o cat
+```
+
+| You did | Log line |
+|---|---|
+| Enrolled finger, read well | `Fingerprint verification matched enrolled template` |
+| Unenrolled finger, or enrolled finger read poorly | `Valid fingerprint capture matched no template` |
+| Touch the chip could not read | `Capture rejected: Scanning problem: 80000` |
+
+The chip does not distinguish a stranger's finger from a poor read of yours;
+both are simply "no match".
+
+While `sudo` waits for a finger it does not react to Ctrl+C. That is how
+`pam_fprintd` behaves; after its ten-second timeout the password prompt
+appears and Ctrl+C works again.
 
 ### KDE Plasma lock screen
 

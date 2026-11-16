@@ -1,29 +1,28 @@
 diff --git a/dbus_service/dbus-service b/dbus_service/dbus-service
-index 8f25def..6218574 100755
+index 8f25def..33997e0 100755
 --- a/dbus_service/dbus-service
 +++ b/dbus_service/dbus-service
-@@ -150,7 +150,25 @@ class Device(dbus.service.Object):
+@@ -150,7 +150,24 @@ class Device(dbus.service.Object):
          # are indistinguishable here. The previous fixed 25-frame watchdog
          # therefore aborted healthy verifies while the user was simply taking
          # time to touch the reader. Let the D-Bus client own timeout/cancel.
 -        update_cb = CaptureRetryNotifier(user, self.VerifyStatus)
 +        #
 +        # 0xd51 / 0x969 chips never signal "finger detected": while waiting
-+        # they complete an empty capture every couple of seconds, and each
-+        # one arrives here as a rejected capture. Forwarding even the first
-+        # makes pam_fprintd and the Plasma lock screen print "place your
-+        # finger on the reader again" before the user has touched anything,
-+        # so on these chips the hint carries no information. Keep it out of
-+        # the D-Bus signal and log the chip's reason instead.
++        # they complete an empty capture every couple of seconds, which is
++        # rejected with status 0007 ("Failed: 0007"). Forwarding that makes
++        # pam_fprintd and the Plasma lock screen print "place your finger on
++        # the reader again" before the user has touched anything, and uses
++        # up the one hint this notifier sends per VerifyStart. Skip those,
++        # so the hint is left for a real bad touch (observed on 138a:00ab:
++        # "Scanning problem: 80000" for a fingertip-only contact).
 +        idle_capture_chip = getattr(sensor, 'real_device_type', None) in (0xd51, 0x969)
-+
-+        def emit_retry(result, done):
-+            if not idle_capture_chip:
-+                self.VerifyStatus(result, done)
-+
-+        retry_notifier = CaptureRetryNotifier(user, emit_retry)
++        retry_notifier = CaptureRetryNotifier(user, self.VerifyStatus)
 +
 +        def update_cb(error):
++            if idle_capture_chip and str(error) == 'Failed: 0007':
++                logging.debug('Empty capture while waiting for a finger')
++                return
 +            logging.info('Capture rejected: %s', error)
 +            retry_notifier(error)
  

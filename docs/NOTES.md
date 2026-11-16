@@ -76,8 +76,8 @@ INFO:root:Fingerprint device registered with open-fprintd
 | A finger that is not enrolled | Rejected (`Failed to match fingerprint` in `sudo`) |
 | `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
 | KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
-| Login screen | Not tested yet |
-| Suspend / resume | Not tested yet |
+| Suspend / resume (sleep) | Works |
+| Login screen after boot, hibernation | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
 ## Two problems found on Ubuntu 24.04
@@ -97,32 +97,37 @@ Both are worth reporting on the upstream pull request.
 
 ## Smaller observations
 
-- **Unrecognised no-match reply.** When an unenrolled finger was presented
-  the chip answered with interrupt `04 00 02 00 db`. The driver only treats
-  `04 00 01 00 db` and `05 00 01 00 db` as a clean "no template matched", so
-  this one goes down the generic error path: the attempt is refused, which is
-  correct, but with a traceback in the log and without the driver's quiet
-  retry.
-- **Early "place your finger again".** While waiting for a finger the chip
-  completes a capture about every two seconds. Each empty one surfaces as
-  `Chip capture retry-scan #n` in the log, and the first is forwarded to the
-  client as `verify-retry-scan`. Cosmetic.
-  `patches/0002-dbus-service-no-idle-retry-prompt.patch` stops forwarding it
-  on `0xd51` / `0x969` chips and logs the reason of each rejected capture.
-  The trade-off: a genuinely bad touch no longer produces a "try again" hint
-  either. Upstream already limited the hint to one per attempt, and that one
-  was always used up by an empty capture, so nothing useful is lost.
-  Confirmed on the test machine: one prompt line, and a wrong finger still
-  gets `Failed to match fingerprint`. Every rejected capture logged so far
-  (8 of 8) carried the same reason, `Failed: 0007`, which therefore looks
-  like the "nothing on the sensor" status. No other reason has been seen yet,
-  so there is nothing to bring the hint back for.
+What the chip reports for each kind of touch during a verification, as seen
+in the driver log:
+
+| Situation | Chip's answer | Count seen |
+|---|---|---|
+| Nothing on the sensor (it polls about every 2 s) | capture status `0007` | every idle poll |
+| Fingertip only (the part above the nail) | capture error `80000` | 1 |
+| Unenrolled finger | match interrupt `04 00 02 00 db` | every attempt |
+| Enrolled finger, read poorly | match interrupt `04 00 02 00 db` | every attempt |
+| Enrolled finger | match | every attempt |
+
+- **No-match packet.** Upstream treats only `04 00 01 00 db` and
+  `05 00 01 00 db` as a clean "no template matched". This chip sends
+  `04 00 02 00 db`, which went down the generic error path: refused, which is
+  correct, but with a traceback in the log and without the driver's retry.
+  `patches/0003` adds the packet. The meaning of the differing field is not
+  known. A stranger's finger and a poor read of an enrolled one are
+  indistinguishable.
+- **Early "place your finger again".** Each idle poll surfaced as a rejected
+  capture, and the first was forwarded to the client as `verify-retry-scan`,
+  so the hint appeared before any touch and was then used up. `patches/0002`
+  skips status `0007` on `0xd51` / `0x969` chips, leaving the hint for
+  captures the chip really could not read.
 - **Touch pressure.** A light touch is enough; pressing hard is not needed.
 - **Plasma lock screen.** `kscreenlocker` ships `/usr/lib/pam.d/kde` (includes
   `common-auth`) and `/usr/lib/pam.d/kde-fingerprint` (`pam_fprintd` only) and
   runs both at once. With `pam_fprintd` also in `common-auth`, the driver log
   shows interleaved verifications, one of them ending in `Fingerprint
   verification cancelled`.
+- **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
+  works again once the ten-second timeout hands over to the password prompt.
 
 ## Why build from a pinned commit
 
