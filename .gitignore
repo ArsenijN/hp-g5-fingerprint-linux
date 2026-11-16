@@ -1,0 +1,24 @@
+# Everything the installer downloads or builds lands here.
+build/
+
+# Never commit vendor binaries. HP's driver package and the firmware inside it
+# are not ours to redistribute; README.md explains how to obtain them.
+*.exe
+*.cab
+*.dll
+*.inf
+*.cat
+*.sys
+*.xpfwext
+*.deb
+*.buildinfo
+*.changes
+
+# Captures and dumps can contain per-device keys and biometric templates.
+*.pcap
+*.pcapng
+*.bin
+probe-*.json
+
+__pycache__/
+*.pyc
