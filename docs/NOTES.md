@@ -73,9 +73,10 @@ INFO:root:Fingerprint device registered with open-fprintd
 | Driver starts against the Windows-provisioned chip, no formatting or pairing | Works |
 | `fprintd-enroll` (right index finger) | Completed after 8 accepted touches |
 | `fprintd-verify` with the enrolled finger | `verify-match` |
-| `fprintd-verify` with a different finger | Not tested yet |
+| A finger that is not enrolled | Rejected (`Failed to match fingerprint` in `sudo`) |
 | `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
-| Login screen, KDE lock screen | Not tested yet |
+| KDE lock screen | Unlocks, but erratic until `scripts/kde-lockscreen-pam.sh` is applied; result with the fix not confirmed yet |
+| Login screen | Not tested yet |
 | Suspend / resume | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
@@ -93,6 +94,24 @@ INFO:root:Fingerprint device registered with open-fprintd
    deletes it before starting the service.
 
 Both are worth reporting on the upstream pull request.
+
+## Smaller observations
+
+- **Unrecognised no-match reply.** When an unenrolled finger was presented
+  the chip answered with interrupt `04 00 02 00 db`. The driver only treats
+  `04 00 01 00 db` and `05 00 01 00 db` as a clean "no template matched", so
+  this one goes down the generic error path: the attempt is refused, which is
+  correct, but with a traceback in the log and without the driver's quiet
+  retry.
+- **Early "place your finger again".** While waiting for a finger the chip
+  completes a capture about every two seconds. Each empty one surfaces as
+  `Chip capture retry-scan #n` in the log, and the first is forwarded to the
+  client as `verify-retry-scan`. Cosmetic.
+- **Plasma lock screen.** `kscreenlocker` ships `/usr/lib/pam.d/kde` (includes
+  `common-auth`) and `/usr/lib/pam.d/kde-fingerprint` (`pam_fprintd` only) and
+  runs both at once. With `pam_fprintd` also in `common-auth`, the driver log
+  shows interleaved verifications, one of them ending in `Fingerprint
+  verification cancelled`.
 
 ## Why build from a pinned commit
 

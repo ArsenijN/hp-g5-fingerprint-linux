@@ -132,9 +132,26 @@ report. Nothing is accepted until a capture really matches; the log
 (`journalctl -u python3-validity`) shows `retry-scan` lines followed by
 `Fingerprint verification matched enrolled template`.
 
-KDE Plasma's lock screen has its own fingerprint support and picks the
-enrolled finger up without extra configuration; press Enter with an empty
-password field on older versions if it does not start scanning by itself.
+### KDE Plasma lock screen
+
+Plasma 6 has its own fingerprint path for the lock screen and needs one extra
+step, otherwise it behaves erratically: sometimes the finger works silently,
+sometimes the screen shows "place your finger" messages followed by
+"verification timed out" and then ignores the reader.
+
+The cause: the lock screen runs a password login (`kde`) and a fingerprint
+login (`kde-fingerprint`) at the same time. `pam-auth-update` put the
+fingerprint step into the shared `common-auth`, so the password login now
+asks for a finger as well, and the two compete for the single reader.
+
+```
+sudo scripts/kde-lockscreen-pam.sh
+```
+
+This writes `/etc/pam.d/kde`, a copy of the distribution's lock-screen
+password config without the fingerprint step. `sudo` and the login screen are
+not affected. Undo with `sudo scripts/kde-lockscreen-pam.sh --remove`. Run it
+again if you later change PAM settings with `pam-auth-update`.
 
 ## Firmware and vendor files
 
