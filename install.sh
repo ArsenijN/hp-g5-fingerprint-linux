@@ -77,6 +77,14 @@ git -C "$SRC" fetch -q --depth 1 origin "$SOURCE_COMMIT"
 git -C "$SRC" checkout -q FETCH_HEAD
 [ "$(git -C "$SRC" rev-parse HEAD)" = "$SOURCE_COMMIT" ] || fail "Fetched commit does not match the pinned one."
 
+say "Applying local patches"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+for patch in "$REPO_DIR"/patches/*.patch; do
+    [ -e "$patch" ] || continue
+    echo "  $(basename "$patch")"
+    git -C "$SRC" apply "$patch" || fail "Patch $(basename "$patch") does not apply."
+done
+
 say "Building the package (this also runs the driver's unit tests)"
 ( cd "$SRC" && dpkg-buildpackage -us -uc -b )
 DEB="$(ls "$BUILD_DIR"/python3-validity_*_all.deb 2>/dev/null | head -n1)"
@@ -96,23 +104,27 @@ say "Starting services (sudo)"
 sudo systemctl daemon-reload
 sudo udevadm control --reload-rules
 sudo systemctl enable python3-validity.service
+sudo systemctl stop python3-validity.service 2>/dev/null || true
+# The driver refuses to start more than 10 times a minute and counts refused
+# starts too, so a crash loop never recovers by itself. Start from zero.
+sudo rm -f /run/python-validity/backoff
 sudo systemctl restart open-fprintd.service
-sudo systemctl restart python3-validity.service
+sudo systemctl start python3-validity.service
 
 echo "Waiting for the sensor to initialise and calibrate..."
-state=unknown
+registered=no
 for _ in $(seq 1 30); do
     sleep 2
-    state="$(systemctl is-active python3-validity.service || true)"
-    if [ "$state" = "active" ] && fprintd-list "$USER" >/dev/null 2>&1; then
+    if fprintd-list "$USER" >/dev/null 2>&1; then
+        registered=yes
         break
     fi
 done
 
-say "Driver status: $state"
-sudo journalctl -u python3-validity.service -b --no-pager -n 40 || true
+say "Sensor registered with open-fprintd: $registered"
+sudo journalctl -u python3-validity.service -b --no-pager -n 25 || true
 
-if [ "$state" = "active" ] && fprintd-list "$USER" >/dev/null 2>&1; then
+if [ "$registered" = "yes" ]; then
     cat <<EOF
 
 Done. The sensor is registered. Next:

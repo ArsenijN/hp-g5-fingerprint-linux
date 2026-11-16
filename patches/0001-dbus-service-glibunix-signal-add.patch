@@ -1,0 +1,21 @@
+diff --git a/dbus_service/dbus-service b/dbus_service/dbus-service
+index cf29fae..8f25def 100755
+--- a/dbus_service/dbus-service
++++ b/dbus_service/dbus-service
+@@ -366,7 +366,15 @@ def main():
+         logging.info('Caught signal %d. Stopping...' % x)
+         loop.quit()
+ 
+-    signal_add = GLibUnix.signal_add if GLibUnix else GLib.unix_signal_add
++    # PyGObject 3.48 with GLib 2.80 (Ubuntu 24.04) has the GLibUnix namespace
++    # but exposes the helper only as signal_add_full; newer releases call it
++    # signal_add, older ones only have GLib.unix_signal_add.
++    signal_add = None
++    if GLibUnix is not None:
++        signal_add = (getattr(GLibUnix, 'signal_add', None)
++                      or getattr(GLibUnix, 'signal_add_full', None))
++    if signal_add is None:
++        signal_add = GLib.unix_signal_add
+     signal_add(GLib.PRIORITY_DEFAULT, signal.SIGINT, die, signal.SIGINT)
+     signal_add(GLib.PRIORITY_DEFAULT, signal.SIGTERM, die, signal.SIGTERM)
+     try:
