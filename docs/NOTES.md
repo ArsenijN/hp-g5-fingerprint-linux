@@ -133,8 +133,8 @@ in the driver log:
   session was started with the password (unlocks), `pam_kwallet5: Couldn't
   get password (it is empty)` when it was started by finger (no unlock, the
   screen keeps asking for the password). The script now also writes
-  `/etc/pam.d/kde-fingerprint` without `pam_kwallet5`; result not confirmed
-  yet.
+  `/etc/pam.d/kde-fingerprint` without `pam_kwallet5`. Confirmed: in the same
+  finger-started session the lock screen then unlocked by finger.
 - **Ctrl+C in `sudo`.** Ignored while `pam_fprintd` waits for a finger; it
   works again once the ten-second timeout hands over to the password prompt.
 
