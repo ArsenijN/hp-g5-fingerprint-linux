@@ -48,12 +48,50 @@ during a capture this chip never sends the interrupt with first byte `2`
 ("finger detected"). It goes from the start acknowledgement (`0`) straight to
 capture events (`3`). The stock capture loop waits for `2` forever. Two more
 details matter: the `0x199` sensor profile is the one whose images the on-chip
-matcher accepts (the `0xdb` profile is not), and the chip needs its own init
-blobs rather than the `0097` ones.
+matcher accepts (the `0xdb` profile is not), and the driver now ships init
+blobs for this chip family instead of borrowing the `0097` ones.
 
 `dpkg -V python3-validity` is a quick way to see whether installed driver
 files were edited by hand; installing the package built by `install.sh`
 replaces them.
+
+## Result
+
+With the package built by `install.sh` (python-validity `0.16~hp18` at commit
+`128a9eb` plus the patch in `patches/`):
+
+```
+INFO:root:Flash has 5 partitions.
+INFO:root:Detected firmware version 1.2 (Tue Jan 21 03:49:25 2020))
+INFO:root:Sensor type 0xd51 — aliasing to 0x199 profile
+INFO:root:Opening sensor: 57K0 FM- 154-120
+INFO:root:Fingerprint device registered with open-fprintd
+```
+
+| Check | Outcome |
+|---|---|
+| Driver starts against the Windows-provisioned chip, no formatting or pairing | Works |
+| `fprintd-enroll` (right index finger) | Completed after 8 accepted touches |
+| `fprintd-verify` with the enrolled finger | `verify-match` |
+| `fprintd-verify` with a different finger | Not tested yet |
+| PAM (`sudo`, login), KDE lock screen | Not tested yet |
+| Suspend / resume | Not tested yet |
+| Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
+
+## Two problems found on Ubuntu 24.04
+
+1. **`GLibUnix.signal_add` does not exist.** The driver picks `GLibUnix` when
+   the namespace can be imported. With PyGObject 3.48.2 and GLib 2.80 it can,
+   but it only offers `signal_add_full`, so the service died immediately after
+   a successful sensor initialisation. Fixed by
+   `patches/0001-dbus-service-glibunix-signal-add.patch`.
+2. **The start limiter latches.** The service unit restarts on failure every
+   two seconds, and the driver refuses more than ten starts a minute while
+   recording the refused ones too. After a crash loop it therefore keeps
+   refusing until `/run/python-validity/backoff` is deleted. `install.sh`
+   deletes it before starting the service.
+
+Both are worth reporting on the upstream pull request.
 
 ## Why build from a pinned commit
 

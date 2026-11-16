@@ -11,9 +11,10 @@ and this repository is the tested recipe for putting those pieces together:
 an installer, a read-only probe to check your chip first, and the notes on
 what goes wrong.
 
-> **Status:** work in progress. The installer and probe are written and the
-> probe is verified on real hardware; the end-to-end result on the test
-> machine is recorded in [docs/NOTES.md](docs/NOTES.md).
+> **Status:** working on an EliteBook 830 G5 with KDE neon (Ubuntu 24.04
+> base): the installer ran, a finger was enrolled in eight touches and
+> `fprintd-verify` reported `verify-match`. What was and was not tested is
+> listed in [docs/NOTES.md](docs/NOTES.md).
 
 ## Is this your hardware?
 
@@ -70,8 +71,8 @@ Run it as your normal user; it asks for `sudo` when needed. It will
 1. install `open-fprintd` and `fprintd-clients` from
    [`ppa:uunicorn/open-fprintd`](https://launchpad.net/~uunicorn/+archive/ubuntu/open-fprintd)
    (this replaces the stock `fprintd`, which cannot drive this sensor),
-2. fetch python-validity at one pinned commit, build a `.deb` from it and run
-   its unit tests,
+2. fetch python-validity at one pinned commit, apply the fixes from
+   [patches/](patches/), build a `.deb` from it and run its unit tests,
 3. install the package and start `python3-validity.service`.
 
 The log is kept in `~/.cache/hp-validity-fingerprint/install.log`.
@@ -89,9 +90,24 @@ fprintd-verify
 fprintd-list $USER
 ```
 
-Touch the sensor, lift, repeat until it reports `enroll-completed`. The
-graphical route works too: System Settings → Users → Configure Fingerprint
-Authentication.
+Touch the sensor, lift, touch again. Each accepted touch prints
+`enroll-stage-passed`; after about eight of them it prints `enroll-completed`
+and exits. Move the finger a little between touches. `enroll-retry-scan`
+means that touch did not count.
+
+```
+Enroll result: enroll-stage-passed
+...
+Enroll result: enroll-completed
+$ fprintd-verify
+Verify result: verify-match (done)
+```
+
+Several fingers can be enrolled, one `fprintd-enroll -f <finger>` each
+(`left-` or `right-` plus `thumb`, `index-finger`, `middle-finger`,
+`ring-finger`, `little-finger`); any of them is accepted afterwards.
+`fprintd-delete $USER` removes them all. The graphical route should work too:
+System Settings → Users → Configure Fingerprint Authentication.
 
 ## Using it for login
 
@@ -157,9 +173,24 @@ the "finger detected" interrupt that the stock driver waits for. Check that
 the patched build is the one installed: `apt-cache policy python3-validity`
 should show `0.16~hp…`, not `0.15~ppa…`.
 
-**`No devices available`.** The driver service is not running or has not
-registered yet. `sudo systemctl restart python3-validity`, wait ten seconds,
-try again.
+**`No devices available` / `list_devices failed`.** The driver service is not
+running or has not registered yet. `sudo systemctl restart python3-validity`,
+wait ten seconds, try again.
+
+**`AttributeError: 'gi.repository.GLibUnix' object has no attribute
+'signal_add'`.** The driver was built without
+[patches/0001](patches/0001-dbus-service-glibunix-signal-add.patch). Ubuntu
+24.04's PyGObject 3.48 only has `signal_add_full`. Re-run `install.sh`.
+
+**`Refusing to start more than 10 times per minute`, over and over.** The
+driver limits its own start rate and counts refused starts as well, so once
+it is in a crash loop it stays there even after the cause is fixed:
+
+```
+sudo systemctl stop python3-validity
+sudo rm -f /run/python-validity/backoff
+sudo systemctl start python3-validity
+```
 
 **The build fails in `setup.py`.** Another Python is ahead of the system one
 in your `PATH` (Homebrew, pyenv, conda). `install.sh` already forces the
