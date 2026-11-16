@@ -101,8 +101,10 @@ sudo systemctl stop python3-validity.service 2>/dev/null || true
 # --reinstall: a rebuild has the same version number as an earlier one, and
 # apt would otherwise keep the old files.
 sudo apt-get install -y --no-install-recommends --allow-downgrades --reinstall "$DEB"
-grep -q signal_add_full /usr/lib/python-validity/dbus-service \
-    || fail "The installed driver does not contain the local patches."
+for needle in signal_add_full idle_capture_chip; do
+    grep -q "$needle" /usr/lib/python-validity/dbus-service \
+        || fail "The installed driver does not contain the local patches."
+done
 
 say "Starting services (sudo)"
 sudo systemctl daemon-reload

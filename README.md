@@ -122,15 +122,16 @@ prompt appears.
 ```
 $ sudo -k; sudo true
 Place your finger on the fingerprint reader
-Place your finger on the reader again
 ```
 
-The second line usually appears before you have touched anything. That is
-normal: while waiting, the chip takes a capture every couple of seconds, an
-empty one is reported as "retry", and the driver forwards the first such
-report. Nothing is accepted until a capture really matches; the log
-(`journalctl -u python3-validity`) shows `retry-scan` lines followed by
-`Fingerprint verification matched enrolled template`.
+Without [patches/0002](patches/0002-dbus-service-no-idle-retry-prompt.patch)
+a second line, "Place your finger on the reader again", shows up a moment
+later although nothing was touched. While waiting, this chip completes an
+empty capture every couple of seconds and the driver reported the first one
+as a retry. It was only ever cosmetic: nothing is accepted until a capture
+really matches. The patch keeps that hint off the prompt and writes the
+chip's reason to the log instead (`journalctl -u python3-validity`, lines
+starting with `Capture rejected:`).
 
 ### KDE Plasma lock screen
 

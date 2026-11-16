@@ -75,7 +75,7 @@ INFO:root:Fingerprint device registered with open-fprintd
 | `fprintd-verify` with the enrolled finger | `verify-match` |
 | A finger that is not enrolled | Rejected (`Failed to match fingerprint` in `sudo`) |
 | `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
-| KDE lock screen | Unlocks, but erratic until `scripts/kde-lockscreen-pam.sh` is applied; result with the fix not confirmed yet |
+| KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
 | Login screen | Not tested yet |
 | Suspend / resume | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
@@ -107,6 +107,13 @@ Both are worth reporting on the upstream pull request.
   completes a capture about every two seconds. Each empty one surfaces as
   `Chip capture retry-scan #n` in the log, and the first is forwarded to the
   client as `verify-retry-scan`. Cosmetic.
+  `patches/0002-dbus-service-no-idle-retry-prompt.patch` stops forwarding it
+  on `0xd51` / `0x969` chips and logs the reason of each rejected capture.
+  The trade-off: a genuinely bad touch no longer produces a "try again" hint
+  either. Upstream already limited the hint to one per attempt, and that one
+  was always used up by an empty capture, so nothing useful is lost. Once the
+  logged reasons show which code means "empty", the hint can be brought back
+  for the others.
 - **Plasma lock screen.** `kscreenlocker` ships `/usr/lib/pam.d/kde` (includes
   `common-auth`) and `/usr/lib/pam.d/kde-fingerprint` (`pam_fprintd` only) and
   runs both at once. With `pam_fprintd` also in `common-auth`, the driver log
