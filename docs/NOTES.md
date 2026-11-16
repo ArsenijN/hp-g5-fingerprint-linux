@@ -77,7 +77,7 @@ INFO:root:Fingerprint device registered with open-fprintd
 | `sudo` through PAM (`pam-auth-update --enable fprintd`) | Works |
 | KDE lock screen | Erratic until `scripts/kde-lockscreen-pam.sh` is applied; with it, unlocks by finger and by password (brief use so far) |
 | Suspend / resume (sleep) | Works |
-| Hibernation | Reader dead after waking until the driver is restarted; `patches/0004` automates the restart, not confirmed yet |
+| Hibernation | Intermittent: failed on the first try (reader dead until the driver was restarted), worked on the second. `patches/0004` restarts the driver when it fails; that path has not fired yet |
 | Login screen after boot | Not tested yet |
 | Clean-slate chip (format, pair, firmware upload) | Not tested; the chip was provisioned |
 
@@ -133,17 +133,25 @@ in the driver log:
 ## Hibernation
 
 Sleep (S3) is fine: the chip keeps power and the driver's `Resume` handler
-re-initialises it. After hibernation the handler's `init.open_common()` got
-as far as `Flash has 5 partitions.`, failed, was tried once more, failed the
-same way, and the exception went back to open-fprintd without being logged.
-The service stayed `active` with no TLS session, so every later verification
-did nothing. The kernel shows a USB reset of the same device number on
-wake-up, not a new enumeration, so udev does not restart the service either.
+re-initialises it. Hibernation was tried twice with different results.
 
-Why re-initialisation fails over the old USB handle is not known yet; the
-first hibernation with `patches/0004` applied will put the exception in the
-log. A cold start of the driver works every time, which is what the patch
-falls back to.
+- **First time, failed.** The handler's `init.open_common()` got as far as
+  `Flash has 5 partitions.`, failed, was tried once more, failed the same
+  way, and the exception went back to open-fprintd without being logged. The
+  service stayed `active` with no TLS session, so every later verification
+  did nothing until the service was restarted by hand. The kernel shows a USB
+  reset of the same device number on wake-up, not a new enumeration, so udev
+  does not restart the service either.
+- **Second time, worked.** `Resume` completed in 0.65 s through the normal
+  path and the finger matched six seconds later.
+
+So re-initialisation after hibernation fails some of the time, for a reason
+not yet known; the handler runs within a tenth of a second of the USB reset,
+which makes timing a suspect. `patches/0004` covers the failing case: it logs
+the exception and exits so that systemd starts the driver again, a path that
+has worked every time. It was installed for the second hibernation but did
+not need to act, so it is untested in anger; the next failure will leave the
+reason in the log.
 
 ## Known issue: the chip reset itself once
 
