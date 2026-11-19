@@ -105,7 +105,7 @@ for needle in signal_add_full idle_capture_chip 'systemd restarts the driver'; d
     grep -q "$needle" /usr/lib/python-validity/dbus-service \
         || fail "The installed driver does not contain the local patches."
 done
-grep -qF 'x04\x00\x02\x00\xdb' /usr/lib/python3/dist-packages/validitysensor/sensor.py \
+grep -qF 'def is_no_template_packet' /usr/lib/python3/dist-packages/validitysensor/sensor.py \
     || fail "The installed driver does not contain the local patches."
 
 say "Starting services (sudo)"

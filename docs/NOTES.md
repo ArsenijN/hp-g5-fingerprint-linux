@@ -105,17 +105,34 @@ in the driver log:
 |---|---|---|
 | Nothing on the sensor (it polls about every 2 s) | capture status `0007` | every idle poll |
 | Fingertip only (the part above the nail) | capture error `80000` | 1 |
-| Unenrolled finger | match interrupt `04 00 02 00 db` | every attempt |
-| Enrolled finger, read poorly | match interrupt `04 00 02 00 db` | every attempt |
+| Unenrolled finger | match interrupt `04 00 NN 00 db` (`NN` = templates on chip) | every attempt |
+| Enrolled finger, read poorly | match interrupt `04 00 NN 00 db` | every attempt |
 | Enrolled finger | match | every attempt |
 
 - **No-match packet.** Upstream treats only `04 00 01 00 db` and
   `05 00 01 00 db` as a clean "no template matched". This chip sends
   `04 00 02 00 db`, which went down the generic error path: refused, which is
   correct, but with a traceback in the log and without the driver's retry.
-  `patches/0003` adds the packet. The meaning of the differing field is not
-  known. A stranger's finger and a poor read of an enrolled one are
-  indistinguishable.
+  The third byte (`NN`) follows the number of templates on the chip: it was
+  `02` with two fingers enrolled and turned into `03` the moment a third was
+  added, and the generic error path came back. Testing never caught this
+  because the template count stayed at two. `patches/0003` now accepts
+  `04/05 00 NN 00 db` for any count. A stranger's finger and a poor read of
+  an enrolled one are indistinguishable.
+- **`fprintd-enroll` without `-f` picks the next free slot.** Its help says
+  "default is automatic": with `right-index-finger` and `right-thumb` taken,
+  it stored the touch as `left-index-finger`, whichever finger was actually
+  used. Enrolling into an occupied slot replaces that slot's template.
+  Pass `-f` to know what you get.
+- **Misses after long sleep.** After sleeps of 3 h or more the first touches
+  often matched no template (2 to 8 valid captures before a match, up to
+  about 50 s), while short sleeps and normal use matched first time. The
+  driver resumes cleanly each time and recovers without any action, so the
+  chip reads the finger and rejects the match. Not settled whether that is
+  cold or dry skin, or the single calibration taken on a warm machine at
+  install (`/var/lib/python-validity/calib-data.bin`, never redone).
+  A second template of the same finger enrolled on a cold machine is being
+  tried as the remedy.
 - **Early "place your finger again".** Each idle poll surfaced as a rejected
   capture, and the first was forwarded to the client as `verify-retry-scan`,
   so the hint appeared before any touch and was then used up. `patches/0002`

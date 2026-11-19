@@ -1,0 +1,89 @@
+diff --git a/tests/test_match_interrupts.py b/tests/test_match_interrupts.py
+index a9dd6e4..e8ec1a2 100644
+--- a/tests/test_match_interrupts.py
++++ b/tests/test_match_interrupts.py
+@@ -5,13 +5,13 @@ from validitysensor.sensor import FingerNotMatchedException, sensor
+ 
+ 
+ class MatchInterruptTests(unittest.TestCase):
+-    def assert_no_match_interrupt(self, sensor_type, interrupt):
++    def assert_no_match_interrupt(self, sensor_type, interrupt, count=1):
+         original_type = getattr(sensor, 'real_device_type', None)
+         sensor.real_device_type = sensor_type
+         try:
+             with patch('validitysensor.sensor.tls.app', return_value=b'\x00\x00'), \
+                     patch('validitysensor.sensor.usb.wait_int',
+-                          return_value=bytes([interrupt, 0, 1, 0, 0xdb])):
++                          return_value=bytes([interrupt, 0, count, 0, 0xdb])):
+                 with self.assertRaises(FingerNotMatchedException):
+                     sensor.match_finger()
+         finally:
+@@ -30,6 +30,28 @@ class MatchInterruptTests(unittest.TestCase):
+     def test_969_firmware_can_use_interrupt_5_for_no_template(self):
+         self.assert_no_match_interrupt(0x969, 5)
+ 
++    def test_d51_no_template_packet_carries_template_count(self):
++        # Captured on physical 138a:00ab / 0xd51 hardware: 02 with two
++        # templates enrolled, 03 right after a third was added.
++        for count in (2, 3, 10):
++            with self.subTest(count=count):
++                self.assert_no_match_interrupt(0xd51, 4, count)
++                self.assert_no_match_interrupt(0xd51, 5, count)
++
++    def test_malformed_no_template_packet_is_not_misclassified(self):
++        original_type = getattr(sensor, 'real_device_type', None)
++        sensor.real_device_type = 0xd51
++        try:
++            for packet in (b'\x04\x01\x03\x00\xdb', b'\x04\x00\x03\x00\xda',
++                           b'\x04\x00\x03\x00'):
++                with self.subTest(packet=packet), \
++                        patch('validitysensor.sensor.tls.app', return_value=b'\x00\x00'), \
++                        patch('validitysensor.sensor.usb.wait_int', return_value=packet):
++                    with self.assertRaisesRegex(Exception, 'Finger not recognized'):
++                        sensor.match_finger()
++        finally:
++            sensor.real_device_type = original_type
++
+     def test_unrelated_interrupt_4_is_not_misclassified(self):
+         original_type = getattr(sensor, 'real_device_type', None)
+         sensor.real_device_type = 0xd51
+diff --git a/validitysensor/sensor.py b/validitysensor/sensor.py
+index dac2b16..0e94ea8 100644
+--- a/validitysensor/sensor.py
++++ b/validitysensor/sensor.py
+@@ -245,6 +245,15 @@ class CaptureMode(Enum):
+     ENROLL = 3
+ 
+ 
++def is_no_template_packet(b: bytes) -> bool:
++    """Clean on-chip "no template matched": 04/05 00 NN 00 db.
++
++    NN tracks how many templates the chip holds, so it is not compared.
++    """
++    return (len(b) == 5 and b[0] in (4, 5) and b[1] == 0 and b[3] == 0
++            and b[4] == 0xdb)
++
++
+ class Sensor:
+     calib_data = b''
+ 
+@@ -975,12 +984,14 @@ class Sensor:
+             # physical 138a:00ab / 0xd51 firmware also emitted 4 after reboot.
+             # Match the complete observed packet so unrelated interrupt 4/5
+             # failures are not accidentally classified as a false negative.
+-            no_template_packets = {
+-                b'\x04\x00\x01\x00\xdb',
+-                b'\x05\x00\x01\x00\xdb',
+-            }
++            # On 138a:00ab / 0xd51 (firmware 1.2) the third byte is not fixed:
++            # it follows the number of templates stored on the chip. One
++            # machine sent 04 000200db with two fingers enrolled and
++            # 04 000300db right after a third was added, for every unenrolled
++            # finger and every poor read of an enrolled one. Accept any count
++            # instead of listing them. The 05 forms are unobserved here.
+             if (getattr(self, 'real_device_type', None) in (0xd51, 0x969)
+-                    and b in no_template_packets):
++                    and is_no_template_packet(b)):
+                 raise FingerNotMatchedException(
+                     'No-template interrupt for sensor 0x%x: %s'
+                     % (self.real_device_type, hexlify(b).decode()))
